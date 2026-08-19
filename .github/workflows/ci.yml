@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  push:
+    branches: [main, '**']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libegl1 libgl1 libxkbcommon0 libxcb1 libx11-6 \
+            libwayland-client0 libxrandr2 libxi6 libxxf86vm1 libxfixes3 libxrender1 \
+            libglu1-mesa
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          components: clippy
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Cargo check
+        run: cargo check
+
+      - name: Cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+  build-linux:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libegl1 libgl1 libxkbcommon0 libxcb1 libx11-6 \
+            libwayland-client0 libxrandr2 libxi6 libxxf86vm1 libxfixes3 libxrender1 \
+            libglu1-mesa
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-linux-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Linux release
+        run: cargo build --release
+
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: calce-linux
+          path: target/release/calce
+
+  build-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MinGW-w64 cross toolchain
+        run: sudo apt-get install -y -qq gcc-mingw-w64-x86-64
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-windows-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Find MinGW GCC lib dir
+        id: gcclib
+        run: echo "path=$(ls -d /usr/lib/gcc/x86_64-w64-mingw32/*/ | head -n1)" >> $GITHUB_OUTPUT
+
+      - name: Build Windows release
+        env:
+          CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
+          MINGW_SYSROOT_LIB: /usr/x86_64-w64-mingw32/lib
+          MINGW_GCC_LIB: ${{ steps.gcclib.outputs.path }}
+        run: cargo build --release --target x86_64-pc-windows-gnu
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: calce-windows
+          path: target/x86_64-pc-windows-gnu/release/calce.exe
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android NDK
+        uses: android-actions/setup-ndk@v3
+        with:
+          ndk-version: '25.1.8394850'
+
+      - name: Install cargo-apk
+        run: cargo install cargo-apk --locked
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-android-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Android APK
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        run: cargo apk build --release
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: calce-android
+          path: |
+            target/release/apk/calce.apk
+            target/**/*.apk

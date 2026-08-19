@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libegl1 libgl1 libxkbcommon0 libxcb1 libx11-6 \
+            libwayland-client0 libxrandr2 libxi6 libxxf86vm1 libxfixes3 libxrender1 \
+            libglu1-mesa
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Install MinGW-w64 cross toolchain
+        run: sudo apt-get install -y -qq gcc-mingw-w64-x86-64
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android NDK
+        uses: android-actions/setup-ndk@v3
+        with:
+          ndk-version: '25.1.8394850'
+
+      - name: Install cargo-apk
+        run: cargo install cargo-apk --locked
+
+      - name: Build all targets
+        run: ./scripts/build-all.sh
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          cp target/release/calce artifacts/calce-linux-x86_64
+          cp target/x86_64-pc-windows-gnu/release/calce.exe artifacts/calce-windows-x86_64.exe
+          find target -name "*.apk" -exec cp {} artifacts/ \;
+          ls -la artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true

@@ -1,0 +1,23 @@
+# Lean cross-compilation with no system-level toolchain installs (no sudo).
+# Windows: rust-lld + rustc self-contained CRT, plus a user-local MinGW runtime
+#   (w64devkit) reached through MINGW_SYSROOT_LIB / MINGW_GCC_LIB (set by
+#   scripts/install-toolchains.sh via ~/.config/calce/env.sh).
+# Android: link-self-contained is NOT supported on *-linux-android, so we use
+#   the NDK clang driver (ANDROID_HOME/NDK_VERSION set by the scripts).
+
+[target.x86_64-pc-windows-gnu]
+linker = "rust-lld"
+rustflags = [
+  "-C", "link-self-contained=yes",
+  "-C", "link-arg=-L${MINGW_SYSROOT_LIB}",
+  "-C", "link-arg=-L${MINGW_GCC_LIB}",
+]
+
+[target.aarch64-linux-android]
+linker = "${ANDROID_HOME}/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+
+[target.armv7-linux-androideabi]
+linker = "${ANDROID_HOME}/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
+
+[target.x86_64-linux-android]
+linker = "${ANDROID_HOME}/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang"

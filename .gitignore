@@ -1,0 +1,20 @@
+# Rust build artifacts
+/target/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Android local config (local machine only)
+local.properties
+
+# Misc build output
+/build/

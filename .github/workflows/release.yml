@@ -51,7 +51,7 @@ jobs:
         run: |
           mkdir -p artifacts
           cp target/release/calce artifacts/calce-linux-x86_64
-          cp target/x86_64-pc-windows-gnu/release/calce.exe artifacts/calce-windows-x86_64.exe
+          cp target/release/calce.exe artifacts/calce-windows-x86_64.exe
           find target -name "*.apk" -exec cp {} artifacts/ \;
           ls -la artifacts/
 

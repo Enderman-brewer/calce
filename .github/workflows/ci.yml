@@ -66,12 +66,9 @@ jobs:
           path: target/release/calce
 
   build-windows:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install MinGW-w64 cross toolchain
-        run: sudo apt-get install -y -qq gcc-mingw-w64-x86-64
 
       - uses: actions/cache@v4
         with:
@@ -81,22 +78,14 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-windows-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Find MinGW GCC lib dir
-        id: gcclib
-        run: echo "path=$(ls -d /usr/lib/gcc/x86_64-w64-mingw32/*/ | head -n1)" >> $GITHUB_OUTPUT
-
       - name: Build Windows release
-        env:
-          CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
-          MINGW_SYSROOT_LIB: /usr/x86_64-w64-mingw32/lib
-          MINGW_GCC_LIB: ${{ steps.gcclib.outputs.path }}
         run: cargo build --release --target x86_64-pc-windows-gnu
 
       - name: Upload Windows binary
         uses: actions/upload-artifact@v4
         with:
           name: calce-windows
-          path: target/x86_64-pc-windows-gnu/release/calce.exe
+          path: target/release/calce.exe
 
   build-android:
     runs-on: ubuntu-latest
